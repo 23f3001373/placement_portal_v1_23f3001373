@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center mb-5">
+    <div class="col-md-6">
+        <div class="card shadow-sm border-dark">
+            <div class="card-body">
+                <h4 class="card-title text-center mb-4">Register Form</h4>
+                
+                <form method="POST" action="{{ url_for('register') }}">
+                    <h6 class="text-muted border-bottom pb-2">Account Details</h6>
+                    <div class="mb-3">
+                        <label for="username" class="form-label small mb-0">Username</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label small mb-0">Password</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                    </div>
+                    <div class="mb-4">
+                        <label for="role" class="form-label small mb-0">Register As:</label>
+                        <select class="form-select" id="role" name="role" required>
+                            <option value="student">Student</option>
+                            <option value="company">Company</option>
+                        </select>
+                    </div>
+
+                    <h6 class="text-muted border-bottom pb-2 mt-4">For Students Only</h6>
+                    <div class="mb-3">
+                        <label for="name" class="form-label small mb-0">Full Name</label>
+                        <input type="text" class="form-control" id="name" name="name">
+                    </div>
+                    <div class="mb-3">
+                        <label for="department" class="form-label small mb-0">Department (e.g., Computer Science)</label>
+                        <input type="text" class="form-control" id="department" name="department">
+                    </div>
+
+                    <h6 class="text-muted border-bottom pb-2 mt-4">For Companies Only</h6>
+                    <div class="mb-3">
+                        <label for="company_name" class="form-label small mb-0">Company Name</label>
+                        <input type="text" class="form-control" id="company_name" name="company_name">
+                    </div>
+                    <div class="mb-4">
+                        <label for="hr_contact" class="form-label small mb-0">HR Contact Details</label>
+                        <input type="text" class="form-control" id="hr_contact" name="hr_contact">
+                    </div>
+                    
+                    <div class="d-grid gap-2 text-center mt-4">
+                        <button type="submit" class="btn btn-outline-dark">Register</button>
+                        <small class="mt-2">
+                            Already have an account? <a href="{{ url_for('login') }}" class="text-decoration-none text-primary">Login</a>
+                        </small>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
