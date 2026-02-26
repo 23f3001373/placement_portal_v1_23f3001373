@@ -19,7 +19,7 @@
                     <th>Department</th>
                     <th>Applied On</th>
                     <th>Current Status</th>
-                    <th>Update Status</th>
+                    <th>Resume</th> <th>Update Status</th>
                 </tr>
             </thead>
             <tbody>
@@ -31,15 +31,22 @@
                     <td>
                         <span class="badge 
                             {% if app.status == 'Applied' %}bg-secondary
-                            {% elif app.status == 'Shortlisted' %}bg-info text-dark
-                            {% elif app.status == 'Selected' %}bg-success
-                            {% elif app.status == 'Rejected' %}bg-danger
+                            ... (your existing badge logic) ...
                             {% endif %}">
                             {{ app.status }}
                         </span>
                     </td>
+                    
                     <td>
-                        <form action="{{ url_for('update_application', app_id=app.id) }}" method="POST" class="d-flex m-0">
+                        {% if app.student.resume_filename %}
+                            <a href="{{ url_for('static', filename='resumes/' + app.student.resume_filename) }}" target="_blank" class="btn btn-sm btn-outline-info">View PDF</a>
+                        {% else %}
+                            <span class="text-muted small">No Resume</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <form action="{{ url_for('update_application', app_id=app.id) }}" ...
+                        
                             <select name="status" class="form-select form-select-sm me-2" style="width: auto;">
                                 <option value="Applied" {% if app.status == 'Applied' %}selected{% endif %}>Applied</option>
                                 <option value="Shortlisted" {% if app.status == 'Shortlisted' %}selected{% endif %}>Shortlisted</option>
