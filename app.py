@@ -183,8 +183,65 @@ def create_drive():
         
     return render_template('create_drive.html')
 
+@app.route('/edit_drive/<int:drive_id>', methods=['GET', 'POST'])
+@login_required
+def edit_drive(drive_id):
+    if current_user.role != 'company': return redirect(url_for('login'))
+        
+    drive = Drive.query.get_or_404(drive_id)
+    
+    # Security check: Ensure company owns this drive
+    if drive.company_id != current_user.id:
+        flash('Unauthorized access.')
+        return redirect(url_for('company_dashboard'))
+        
+    if request.method == 'POST':
+        drive.job_title = request.form.get('job_title')
+        drive.job_description = request.form.get('job_description')
+        drive.eligibility_criteria = request.form.get('eligibility_criteria')
+        drive.application_deadline = request.form.get('application_deadline')
+        
+        # Optional: if they edit it, you might want it to remain 'Approved' or go back to 'Pending'. 
+        # For simplicity, we'll leave the status as is.
+        db.session.commit()
+        flash('Drive updated successfully!', 'success')
+        return redirect(url_for('company_dashboard'))
+        
+    return render_template('edit_drive.html', drive=drive)
+
+@app.route('/close_drive/<int:drive_id>', methods=['POST'])
+@login_required
+def close_drive(drive_id):
+    if current_user.role != 'company': return redirect(url_for('login'))
+        
+    drive = Drive.query.get_or_404(drive_id)
+    if drive.company_id == current_user.id:
+        drive.status = 'Closed'
+        db.session.commit()
+        flash(f'Drive "{drive.job_title}" is now closed.', 'warning')
+        
+    return redirect(url_for('company_dashboard'))
+
+@app.route('/delete_drive/<int:drive_id>', methods=['POST'])
+@login_required
+def delete_drive(drive_id):
+    if current_user.role != 'company': return redirect(url_for('login'))
+        
+    drive = Drive.query.get_or_404(drive_id)
+    if drive.company_id == current_user.id:
+        # First, delete all applications associated with this drive to prevent database errors
+        Application.query.filter_by(drive_id=drive_id).delete()
+        
+        # Then delete the drive itself
+        db.session.delete(drive)
+        db.session.commit()
+        flash('Placement drive deleted successfully.', 'success')
+        
+    return redirect(url_for('company_dashboard'))
+
 @app.route('/drive/<int:drive_id>/applications')
 @login_required
+
 def drive_applications(drive_id):
     if current_user.role != 'company':
         return redirect(url_for('login'))

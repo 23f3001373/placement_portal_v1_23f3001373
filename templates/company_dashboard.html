@@ -38,7 +38,21 @@
                         {% endif %}
                     </td>
                     <td>
-                        <a href="{{ url_for('drive_applications', drive_id=drive.id) }}" class="btn btn-sm btn-outline-primary">View Details</a>
+                        <div class="d-flex gap-1">
+                            <a href="{{ url_for('drive_applications', drive_id=drive.id) }}" class="btn btn-sm btn-outline-primary">View Details</a>
+                            
+                            <a href="{{ url_for('edit_drive', drive_id=drive.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                            
+                            {% if drive.status != 'Closed' %}
+                            <form action="{{ url_for('close_drive', drive_id=drive.id) }}" method="POST" class="m-0" onsubmit="return confirm('Are you sure you want to close this drive? Students will no longer be able to apply.');">
+                                <button type="submit" class="btn btn-sm btn-warning">Close</button>
+                            </form>
+                            {% endif %}
+                            
+                            <form action="{{ url_for('delete_drive', drive_id=drive.id) }}" method="POST" class="m-0" onsubmit="return confirm('Are you sure you want to completely delete this drive and all its applications?');">
+                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
                 {% else %}
