@@ -107,6 +107,19 @@ def admin_dashboard():
                            pending_drives=pending_drives,
                            search_query=search_query)
 
+@app.route('/admin/history')
+@login_required
+def admin_history():
+    if current_user.role != 'admin':
+        flash('Access denied: Admins only.')
+        return redirect(url_for('login'))
+    
+    # Fetch all drives and all applications, ordering by newest first
+    all_drives = Drive.query.order_by(Drive.id.desc()).all()
+    all_applications = Application.query.order_by(Application.application_date.desc()).all()
+    
+    return render_template('admin_history.html', drives=all_drives, applications=all_applications)
+
 @app.route('/approve_drive/<int:drive_id>', methods=['POST'])
 @login_required
 
