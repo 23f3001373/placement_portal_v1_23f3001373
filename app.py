@@ -39,7 +39,6 @@ def login():
             if user.is_blacklisted:
                 flash('Your account has been blacklisted by the Administrator.', 'danger')
                 return redirect(url_for('login'))
-             
             if user.role == 'company' and not user.is_approved:
                 flash('Your company account is pending Admin approval.')
                 return redirect(url_for('login'))
@@ -308,6 +307,7 @@ def apply(drive_id):
     return redirect(url_for('student_dashboard'))
 
 @app.route('/register', methods=['GET', 'POST'])
+
 def register():
     if request.method == 'POST':
         username = request.form.get('username')
