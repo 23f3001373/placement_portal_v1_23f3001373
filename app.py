@@ -36,7 +36,10 @@ def login():
         user = User.query.filter_by(username=username).first()
         
         if user and check_password_hash(user.password, password):
-            # Check if it's a company and if they are approved 
+            if user.is_blacklisted:
+                flash('Your account has been blacklisted by the Administrator.', 'danger')
+                return redirect(url_for('login'))
+             
             if user.role == 'company' and not user.is_approved:
                 flash('Your company account is pending Admin approval.')
                 return redirect(url_for('login'))
@@ -334,6 +337,55 @@ def register():
         return redirect(url_for('login'))
         
     return render_template('register.html')
+
+@app.route('/admin/blacklist/<int:user_id>', methods=['POST'])
+@login_required
+
+def toggle_blacklist(user_id):
+    if current_user.role != 'admin': return redirect(url_for('login'))
+    
+    user = User.query.get_or_404(user_id)
+    user.is_blacklisted = not user.is_blacklisted # Toggles between True and False
+    db.session.commit()
+    
+    status = "blacklisted" if user.is_blacklisted else "un-blacklisted"
+    flash(f'User {user.username} has been {status}.', 'warning')
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/delete/<int:user_id>', methods=['POST'])
+@login_required
+
+def delete_user(user_id):
+    if current_user.role != 'admin': return redirect(url_for('login'))
+    
+    user = User.query.get_or_404(user_id)
+    db.session.delete(user)
+    db.session.commit()
+    
+    flash('User deleted successfully.', 'success')
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/edit_user/<int:user_id>', methods=['GET', 'POST'])
+@login_required
+
+def admin_edit_user(user_id):
+    if current_user.role != 'admin': return redirect(url_for('login'))
+    
+    user = User.query.get_or_404(user_id)
+    
+    if request.method == 'POST':
+        if user.role == 'student':
+            user.name = request.form.get('name')
+            user.department = request.form.get('department')
+        elif user.role == 'company':
+            user.company_name = request.form.get('company_name')
+            user.hr_contact = request.form.get('hr_contact')
+            
+        db.session.commit()
+        flash('User details updated successfully!', 'success')
+        return redirect(url_for('admin_dashboard'))
+        
+    return render_template('admin_edit_user.html', user=user)
 
 if __name__ == '__main__':
     app.run(debug=True)
