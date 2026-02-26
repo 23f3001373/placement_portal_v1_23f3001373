@@ -3,6 +3,15 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>Welcome, Admin</h2>
+    
+    <form class="d-flex mx-3" method="GET" action="{{ url_for('admin_dashboard') }}" style="flex-grow: 1; max-width: 500px;">
+        <input class="form-control me-2 border-dark" type="search" placeholder="Search by Name or ID..." name="search" value="{{ search_query }}">
+        <button class="btn btn-outline-dark" type="submit">Search</button>
+        {% if search_query %}
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-danger ms-2">Clear</a>
+        {% endif %}
+    </form>
+
     <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">Logout</a>
 </div>
 <div class="row mb-4">
@@ -101,7 +110,7 @@
             <ul class="list-group list-group-flush">
                 {% for company in approved_companies %}
                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                    {{ company.company_name }}
+                    <span class="text-muted small me-2">ID: {{ company.id }}</span> {{ company.company_name }}
                     <button class="btn btn-sm btn-outline-danger disabled">Blacklist</button>
                 </li>
                 {% else %}
@@ -119,7 +128,7 @@
             <ul class="list-group list-group-flush">
                 {% for student in students %}
                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                    {{ student.name }} ({{ student.department }})
+                    <span class="text-muted small me-2">ID: {{ student.id }}</span> {{ student.name }} ({{ student.department }})
                     <button class="btn btn-sm btn-outline-danger disabled">Blacklist</button>
                 </li>
                 {% else %}

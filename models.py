@@ -12,6 +12,7 @@ class User(db.Model, UserMixin):
 
     name = db.Column(db.String(150), nullable=True)
     department = db.Column(db.String(150), nullable=True)
+    resume_filename = db.Column(db.String(255), nullable=True)
 
     company_name = db.Column(db.String(150), nullable=True)
     hr_contact = db.Column(db.String(150), nullable=True)
@@ -31,8 +32,11 @@ class Drive(db.Model):
 
 
 class Application(db.Model):
+    # Attributes for Student Application
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     drive_id = db.Column(db.Integer, db.ForeignKey('drive.id'), nullable=False)
     application_date = db.Column(db.DateTime, default=datetime.utcnow)
-    status = db.Column(db.String(50), default='Applied')
+    status = db.Column(db.String(50), default='Applied') 
+    student = db.relationship('User', backref='applications')
+    drive = db.relationship('Drive', backref='applications')

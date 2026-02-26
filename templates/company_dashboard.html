@@ -38,7 +38,7 @@
                         {% endif %}
                     </td>
                     <td>
-                        <button class="btn btn-sm btn-outline-primary disabled">View Details</button>
+                        <a href="{{ url_for('drive_applications', drive_id=drive.id) }}" class="btn btn-sm btn-outline-primary">View Details</a>
                     </td>
                 </tr>
                 {% else %}
