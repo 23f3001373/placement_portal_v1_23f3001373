@@ -86,13 +86,23 @@ def admin_dashboard():
     
     if search_query:
         if search_query.isdigit():
-            # If the search query is a number, search exactly by ID
+            # Search exactly by ID
             approved_companies = User.query.filter_by(role='company', is_approved=True, id=int(search_query)).all()
             students = User.query.filter_by(role='student', id=int(search_query)).all()
         else:
-            # If it's text, do a partial match search on the names
-            approved_companies = User.query.filter(User.role=='company', User.is_approved==True, User.company_name.ilike(f'%{search_query}%')).all()
-            students = User.query.filter(User.role=='student', User.name.ilike(f'%{search_query}%')).all()
+            # Search by partial text match 
+            # NEW: Companies search by Name OR Industry
+            approved_companies = User.query.filter(
+                User.role == 'company', 
+                User.is_approved == True, 
+                db.or_(
+                    User.company_name.ilike(f'%{search_query}%'),
+                    User.industry.ilike(f'%{search_query}%')
+                )
+            ).all()
+            
+            # Students search by Name
+            students = User.query.filter(User.role == 'student', User.name.ilike(f'%{search_query}%')).all()
     else:
         # Default behavior: show all
         approved_companies = User.query.filter_by(role='company', is_approved=True).all()
@@ -295,29 +305,41 @@ def update_application(app_id):
 
 @app.route('/student_dashboard')
 @login_required
-
 def student_dashboard():
-    # Security check: Kick out non-students
     if current_user.role != 'student':
         flash('Access denied: Students only.')
         return redirect(url_for('login'))
         
-    # Fetch all applications submitted by this student [cite: 41, 118-119]
     my_applications = Application.query.filter_by(student_id=current_user.id).all()
-    
-    # Extract just the Drive IDs the student has already applied to
     applied_drive_ids = [app.drive_id for app in my_applications]
     
-    # Fetch all 'Approved' drives [cite: 39, 118]
-    # Filter out the ones the student has already applied to 
+    # NEW: Get the search query from the URL
+    search_query = request.args.get('search', '')
+    
+    # Start with a base query for approved drives
+    query = Drive.query.filter(Drive.status == 'Approved')
+    
+    # Exclude drives the student already applied to
     if applied_drive_ids:
-        available_drives = Drive.query.filter(Drive.status == 'Approved', Drive.id.notin_(applied_drive_ids)).all()
-    else:
-        available_drives = Drive.query.filter_by(status='Approved').all()
+        query = query.filter(Drive.id.notin_(applied_drive_ids))
+        
+    # NEW: Apply the search filter if a query exists
+    if search_query:
+        # Search by job title (position) or company name
+        query = query.join(User).filter(
+            db.or_(
+                Drive.job_title.ilike(f'%{search_query}%'),
+                User.company_name.ilike(f'%{search_query}%'),
+                Drive.eligibility_criteria.ilike(f'%{search_query}%') # Acts as "skills"
+            )
+        )
+        
+    available_drives = query.all()
         
     return render_template('student_dashboard.html', 
                            available_drives=available_drives, 
-                           my_applications=my_applications)
+                           my_applications=my_applications,
+                           search_query=search_query) # Pass query to template
 
 @app.route('/edit_profile', methods=['GET', 'POST'])
 @login_required

@@ -5,7 +5,7 @@
     <h2>Welcome, Admin</h2>
     
     <form class="d-flex mx-3" method="GET" action="{{ url_for('admin_dashboard') }}" style="flex-grow: 1; max-width: 500px;">
-        <input class="form-control me-2 border-dark" type="search" placeholder="Search by Name or ID..." name="search" value="{{ search_query }}">
+        <input class="form-control me-2 border-dark" type="search" placeholder="Search by Name, ID, or Industry..." name="search" value="{{ search_query }}">
         <button class="btn btn-outline-dark" type="submit">Search</button>
         {% if search_query %}
             <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-danger ms-2">Clear</a>
