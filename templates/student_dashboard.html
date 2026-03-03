@@ -2,14 +2,18 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h2>Welcome, {{ current_user.name }}</h2>
-        <p class="text-muted m-0">Department: {{ current_user.department }}</p>
-        {% if current_user.resume_filename %}
-            <p class="small text-success fw-bold m-0">✓ Resume Uploaded</p>
-        {% else %}
-            <p class="small text-danger fw-bold m-0">✗ No Resume Uploaded</p>
-        {% endif %}
+    <div class="d-flex align-items-center">
+        <img src="https://ui-avatars.com/api/?name={{ current_user.name | urlencode }}&background=random&color=fff&rounded=true&size=64" alt="Profile" class="me-3 shadow-sm">
+        
+        <div>
+            <h2 class="mb-0">Welcome, {{ current_user.name }}</h2>
+            <p class="text-muted m-0">Department: {{ current_user.department }}</p>
+            {% if current_user.resume_filename %}
+                <p class="small text-success fw-bold m-0">✓ Resume Uploaded</p>
+            {% else %}
+                <p class="small text-danger fw-bold m-0">✗ No Resume Uploaded</p>
+            {% endif %}
+        </div>
     </div>
     
     <form class="d-flex mx-3" method="GET" action="{{ url_for('student_dashboard') }}" style="flex-grow: 1; max-width: 400px;">

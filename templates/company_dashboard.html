@@ -2,7 +2,11 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Welcome, {{ current_user.company_name }}</h2>
+    <div class="d-flex align-items-center">
+        <img src="https://ui-avatars.com/api/?name={{ current_user.company_name | urlencode }}&background=0D8ABC&color=fff&rounded=true&size=64&bold=true" alt="Company Logo" class="me-3 shadow-sm">
+        
+        <h2 class="mb-0">Welcome, {{ current_user.company_name }}</h2>
+    </div>
     <div>
         <a href="{{ url_for('create_drive') }}" class="btn btn-outline-success btn-sm me-2">Create Drive</a>
         <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">Logout</a>
