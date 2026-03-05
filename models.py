@@ -16,6 +16,7 @@ class User(db.Model, UserMixin):
 
     company_name = db.Column(db.String(150), nullable=True)
     hr_contact = db.Column(db.String(150), nullable=True)
+    website = db.Column(db.String(255), nullable=True)
     industry = db.Column(db.String(150), nullable=True)
     is_approved = db.Column(db.Boolean, default=False)
     is_blacklisted = db.Column(db.Boolean, default=False)

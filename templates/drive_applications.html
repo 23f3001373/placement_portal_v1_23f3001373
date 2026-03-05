@@ -4,7 +4,15 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h2>Applications for: {{ drive.job_title }}</h2>
-        <p class="text-muted m-0">Deadline was: {{ drive.application_deadline }}</p>
+        <p class="text-muted m-0">Deadline: {{ drive.application_deadline }} | Status:
+            <span class="badge 
+                {% if drive.status == 'Approved' %}bg-success
+                {% elif drive.status == 'Pending' %}bg-warning text-dark
+                {% elif drive.status == 'Closed' %}bg-secondary
+                {% else %}bg-dark{% endif %}">
+                {{ drive.status }}
+            </span>
+        </p>
     </div>
     <a href="{{ url_for('company_dashboard') }}" class="btn btn-outline-secondary btn-sm">Back to Dashboard</a>
 </div>
@@ -19,7 +27,8 @@
                     <th>Department</th>
                     <th>Applied On</th>
                     <th>Current Status</th>
-                    <th>Resume</th> <th>Update Status</th>
+                    <th>Resume</th>
+                    <th>Update Status</th>
                 </tr>
             </thead>
             <tbody>
@@ -31,27 +40,34 @@
                     <td>
                         <span class="badge 
                             {% if app.status == 'Applied' %}bg-secondary
-                            ... (your existing badge logic) ...
+                            {% elif app.status == 'Shortlisted' %}bg-info text-dark
+                            {% elif app.status == 'Selected' %}bg-success
+                            {% elif app.status == 'Rejected' %}bg-danger
                             {% endif %}">
                             {{ app.status }}
                         </span>
                     </td>
-                    
+
                     <td>
                         {% if app.student.resume_filename %}
-                            <a href="{{ url_for('static', filename='resumes/' + app.student.resume_filename) }}" target="_blank" class="btn btn-sm btn-outline-info">View PDF</a>
+                        <a href="{{ url_for('static', filename='resumes/' + app.student.resume_filename) }}"
+                            target="_blank" class="btn btn-sm btn-outline-info">View PDF</a>
                         {% else %}
-                            <span class="text-muted small">No Resume</span>
+                        <span class="text-muted small">No Resume</span>
                         {% endif %}
                     </td>
                     <td>
-                        <form action="{{ url_for('update_application', app_id=app.id) }}" ...
-                        
+                        <form action="{{ url_for('update_application', app_id=app.id) }}" method="POST"
+                            class="d-flex gap-1 m-0">
                             <select name="status" class="form-select form-select-sm me-2" style="width: auto;">
-                                <option value="Applied" {% if app.status == 'Applied' %}selected{% endif %}>Applied</option>
-                                <option value="Shortlisted" {% if app.status == 'Shortlisted' %}selected{% endif %}>Shortlisted</option>
-                                <option value="Selected" {% if app.status == 'Selected' %}selected{% endif %}>Selected</option>
-                                <option value="Rejected" {% if app.status == 'Rejected' %}selected{% endif %}>Rejected</option>
+                                <option value="Applied" {% if app.status=='Applied' %}selected{% endif %}>Applied
+                                </option>
+                                <option value="Shortlisted" {% if app.status=='Shortlisted' %}selected{% endif %}>
+                                    Shortlisted</option>
+                                <option value="Selected" {% if app.status=='Selected' %}selected{% endif %}>Selected
+                                </option>
+                                <option value="Rejected" {% if app.status=='Rejected' %}selected{% endif %}>Rejected
+                                </option>
                             </select>
                             <button type="submit" class="btn btn-sm btn-outline-dark">Save</button>
                         </form>
@@ -59,7 +75,8 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="5" class="text-center text-muted py-4">No applications received for this drive yet.</td>
+                    <td colspan="6" class="text-center text-muted py-4">No applications received for this drive yet.
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

@@ -3,11 +3,18 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div class="d-flex align-items-center">
-        <img src="https://ui-avatars.com/api/?name={{ current_user.company_name | urlencode }}&background=0D8ABC&color=fff&rounded=true&size=64&bold=true" alt="Company Logo" class="me-3 shadow-sm">
-        
-        <h2 class="mb-0">Welcome, {{ current_user.company_name }}</h2>
+        <img src="https://ui-avatars.com/api/?name={{ current_user.company_name | urlencode }}&background=0D8ABC&color=fff&rounded=true&size=64&bold=true"
+            alt="Company Logo" class="me-3 shadow-sm">
+
+        <div>
+            <h2 class="mb-0">Welcome, {{ current_user.company_name }}</h2>
+            {% if current_user.industry %}
+            <p class="text-muted m-0">Industry: {{ current_user.industry }}</p>
+            {% endif %}
+        </div>
     </div>
     <div>
+        <a href="{{ url_for('edit_company_profile') }}" class="btn btn-outline-primary btn-sm me-2">Edit Profile</a>
         <a href="{{ url_for('create_drive') }}" class="btn btn-outline-success btn-sm me-2">Create Drive</a>
         <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">Logout</a>
     </div>
@@ -34,26 +41,32 @@
                     <td>{{ drive.application_deadline }}</td>
                     <td>
                         {% if drive.status == 'Approved' %}
-                            <span class="badge bg-success">Approved</span>
+                        <span class="badge bg-success">Approved</span>
                         {% elif drive.status == 'Pending' %}
-                            <span class="badge bg-warning text-dark">Pending</span>
+                        <span class="badge bg-warning text-dark">Pending</span>
+                        {% elif drive.status == 'Rejected' %}
+                        <span class="badge bg-danger">Rejected</span>
                         {% else %}
-                            <span class="badge bg-secondary">{{ drive.status }}</span>
+                        <span class="badge bg-secondary">{{ drive.status }}</span>
                         {% endif %}
                     </td>
                     <td>
                         <div class="d-flex gap-1">
-                            <a href="{{ url_for('drive_applications', drive_id=drive.id) }}" class="btn btn-sm btn-outline-primary">View Details</a>
-                            
-                            <a href="{{ url_for('edit_drive', drive_id=drive.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
-                            
+                            <a href="{{ url_for('drive_applications', drive_id=drive.id) }}"
+                                class="btn btn-sm btn-outline-primary">View Details</a>
+
+                            <a href="{{ url_for('edit_drive', drive_id=drive.id) }}"
+                                class="btn btn-sm btn-outline-secondary">Edit</a>
+
                             {% if drive.status != 'Closed' %}
-                            <form action="{{ url_for('close_drive', drive_id=drive.id) }}" method="POST" class="m-0" onsubmit="return confirm('Are you sure you want to close this drive? Students will no longer be able to apply.');">
+                            <form action="{{ url_for('close_drive', drive_id=drive.id) }}" method="POST" class="m-0"
+                                onsubmit="return confirm('Are you sure you want to close this drive? Students will no longer be able to apply.');">
                                 <button type="submit" class="btn btn-sm btn-warning">Close</button>
                             </form>
                             {% endif %}
-                            
-                            <form action="{{ url_for('delete_drive', drive_id=drive.id) }}" method="POST" class="m-0" onsubmit="return confirm('Are you sure you want to completely delete this drive and all its applications?');">
+
+                            <form action="{{ url_for('delete_drive', drive_id=drive.id) }}" method="POST" class="m-0"
+                                onsubmit="return confirm('Are you sure you want to completely delete this drive and all its applications?');">
                                 <button type="submit" class="btn btn-sm btn-danger">Delete</button>
                             </form>
                         </div>

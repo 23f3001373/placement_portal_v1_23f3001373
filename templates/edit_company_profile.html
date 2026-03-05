@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center mb-5">
+    <div class="col-md-6">
+        <div class="card shadow-sm border-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="card-title m-0">Edit Company Profile</h4>
+                    <a href="{{ url_for('company_dashboard') }}" class="btn btn-sm btn-outline-secondary">Back</a>
+                </div>
+
+                <form method="POST" action="{{ url_for('edit_company_profile') }}">
+                    <div class="mb-3">
+                        <label for="company_name" class="form-label small mb-0">Company Name</label>
+                        <input type="text" class="form-control" id="company_name" name="company_name"
+                            value="{{ current_user.company_name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="hr_contact" class="form-label small mb-0">HR Contact Details</label>
+                        <input type="text" class="form-control" id="hr_contact" name="hr_contact"
+                            value="{{ current_user.hr_contact or '' }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="website" class="form-label small mb-0">Company Website</label>
+                        <input type="url" class="form-control" id="website" name="website"
+                            value="{{ current_user.website or '' }}" placeholder="https://example.com">
+                    </div>
+                    <div class="mb-4">
+                        <label for="industry" class="form-label small mb-0">Industry (e.g., IT, Finance,
+                            Healthcare)</label>
+                        <input type="text" class="form-control" id="industry" name="industry"
+                            value="{{ current_user.industry or '' }}">
+                    </div>
+
+                    <div class="text-end">
+                        <button type="submit" class="btn btn-outline-success">Save Profile</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

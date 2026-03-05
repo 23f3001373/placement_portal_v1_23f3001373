@@ -3,12 +3,14 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>Welcome, Admin</h2>
-    
-    <form class="d-flex mx-3" method="GET" action="{{ url_for('admin_dashboard') }}" style="flex-grow: 1; max-width: 500px;">
-        <input class="form-control me-2 border-dark" type="search" placeholder="Search by Name, ID, or Industry..." name="search" value="{{ search_query }}">
+
+    <form class="d-flex mx-3" method="GET" action="{{ url_for('admin_dashboard') }}"
+        style="flex-grow: 1; max-width: 500px;">
+        <input class="form-control me-2 border-dark" type="search"
+            placeholder="Search by Name, ID, Industry, or Contact..." name="search" value="{{ search_query }}">
         <button class="btn btn-outline-dark" type="submit">Search</button>
         {% if search_query %}
-            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-danger ms-2">Clear</a>
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-danger ms-2">Clear</a>
         {% endif %}
     </form>
 
@@ -17,43 +19,7 @@
         <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">Logout</a>
     </div>
 </div>
-<div class="row mb-4">
-    <div class="col-md-12">
-        <div class="card border-dark shadow-sm">
-            <div class="card-header bg-warning text-dark fw-bold">Placement Drives (Pending Approval)</div>
-            <div class="card-body p-0">
-                <table class="table table-hover mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Company</th>
-                            <th>Job Title</th>
-                            <th>Deadline</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for drive in pending_drives %}
-                        <tr>
-                            <td>{{ drive.company.company_name }}</td>
-                            <td>{{ drive.job_title }}</td>
-                            <td>{{ drive.application_deadline }}</td>
-                            <td>
-                                <form action="{{ url_for('approve_drive', drive_id=drive.id) }}" method="POST" class="m-0">
-                                    <button type="submit" class="btn btn-sm btn-success">Approve Drive</button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="4" class="text-center text-muted py-3">No pending drives to approve.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
+
 <div class="row mb-4 text-center">
     <div class="col-md-3">
         <div class="card text-white bg-primary mb-3 shadow-sm">
@@ -89,18 +55,69 @@
     </div>
 </div>
 
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card border-dark shadow-sm">
+            <div class="card-header bg-warning text-dark fw-bold">Placement Drives (Pending Approval)</div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Company</th>
+                            <th>Job Title</th>
+                            <th>Deadline</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for drive in pending_drives %}
+                        <tr>
+                            <td>{{ drive.company.company_name }}</td>
+                            <td>{{ drive.job_title }}</td>
+                            <td>{{ drive.application_deadline }}</td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <form action="{{ url_for('approve_drive', drive_id=drive.id) }}" method="POST"
+                                        class="m-0">
+                                        <button type="submit" class="btn btn-sm btn-success">Approve</button>
+                                    </form>
+                                    <form action="{{ url_for('reject_drive', drive_id=drive.id) }}" method="POST"
+                                        class="m-0">
+                                        <button type="submit" class="btn btn-sm btn-danger">Reject</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-3">No pending drives to approve.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row">
     <div class="col-md-6">
-        
+
         <div class="card mb-4 border-dark shadow-sm">
             <div class="card-header bg-dark text-white">Company Applications (Pending)</div>
             <ul class="list-group list-group-flush">
                 {% for company in pending_companies %}
                 <li class="list-group-item d-flex justify-content-between align-items-center">
                     {{ company.company_name }} ({{ company.username }})
-                    <form action="{{ url_for('approve_company', company_id=company.id) }}" method="POST" class="m-0">
-                        <button type="submit" class="btn btn-sm btn-outline-success">Approve</button>
-                    </form>
+                    <div class="d-flex gap-1">
+                        <form action="{{ url_for('approve_company', company_id=company.id) }}" method="POST"
+                            class="m-0">
+                            <button type="submit" class="btn btn-sm btn-outline-success">Approve</button>
+                        </form>
+                        <form action="{{ url_for('reject_company', company_id=company.id) }}" method="POST" class="m-0">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Reject</button>
+                        </form>
+                    </div>
                 </li>
                 {% else %}
                 <li class="list-group-item text-muted">No pending approvals.</li>
@@ -114,18 +131,22 @@
                 {% for company in approved_companies %}
                 <li class="list-group-item d-flex justify-content-between align-items-center">
                     <span class="text-muted small me-2">ID: {{ company.id }}</span> {{ company.company_name }}
+                    {% if company.industry %}<span class="badge bg-light text-dark ms-1">{{ company.industry }}</span>{%
+                    endif %}
                     <div class="d-flex gap-2">
-                        <a href="{{ url_for('admin_edit_user', user_id=company.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
-                        
+                        <a href="{{ url_for('admin_edit_user', user_id=company.id) }}"
+                            class="btn btn-sm btn-outline-primary">Edit</a>
+
                         <form action="{{ url_for('toggle_blacklist', user_id=company.id) }}" method="POST" class="m-0">
                             {% if company.is_blacklisted %}
-                                <button type="submit" class="btn btn-sm btn-warning">Un-Blacklist</button>
+                            <button type="submit" class="btn btn-sm btn-warning">Un-Blacklist</button>
                             {% else %}
-                                <button type="submit" class="btn btn-sm btn-outline-warning">Blacklist</button>
+                            <button type="submit" class="btn btn-sm btn-outline-warning">Blacklist</button>
                             {% endif %}
                         </form>
 
-                        <form action="{{ url_for('delete_user', user_id=company.id) }}" method="POST" class="m-0" onsubmit="return confirm('Are you sure you want to delete this company?');">
+                        <form action="{{ url_for('delete_user', user_id=company.id) }}" method="POST" class="m-0"
+                            onsubmit="return confirm('Are you sure you want to delete this company?');">
                             <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
                         </form>
                     </div>
@@ -139,25 +160,29 @@
     </div>
 
     <div class="col-md-6">
-        
+
         <div class="card mb-4 border-dark shadow-sm">
             <div class="card-header bg-dark text-white">Registered Students</div>
             <ul class="list-group list-group-flush">
                 {% for student in students %}
                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                    <span class="text-muted small me-2">ID: {{ student.id }}</span> {{ student.name }} ({{ student.department }})
+                    <span class="text-muted small me-2">ID: {{ student.id }}</span> {{ student.name }} ({{
+                    student.department }})
+                    {% if student.is_blacklisted %}<span class="badge bg-danger ms-1">Blacklisted</span>{% endif %}
                     <div class="d-flex gap-2">
-                        <a href="{{ url_for('admin_edit_user', user_id=student.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
-                        
+                        <a href="{{ url_for('admin_edit_user', user_id=student.id) }}"
+                            class="btn btn-sm btn-outline-primary">Edit</a>
+
                         <form action="{{ url_for('toggle_blacklist', user_id=student.id) }}" method="POST" class="m-0">
                             {% if student.is_blacklisted %}
-                                <button type="submit" class="btn btn-sm btn-warning">Un-Blacklist</button>
+                            <button type="submit" class="btn btn-sm btn-warning">Un-Blacklist</button>
                             {% else %}
-                                <button type="submit" class="btn btn-sm btn-outline-warning">Blacklist</button>
+                            <button type="submit" class="btn btn-sm btn-outline-warning">Blacklist</button>
                             {% endif %}
                         </form>
 
-                        <form action="{{ url_for('delete_user', user_id=student.id) }}" method="POST" class="m-0" onsubmit="return confirm('Are you sure you want to delete this student?');">
+                        <form action="{{ url_for('delete_user', user_id=student.id) }}" method="POST" class="m-0"
+                            onsubmit="return confirm('Are you sure you want to delete this student?');">
                             <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
                         </form>
                     </div>

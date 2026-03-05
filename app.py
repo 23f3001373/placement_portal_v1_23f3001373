@@ -4,18 +4,30 @@ from flask_login import LoginManager, login_user, login_required, logout_user, c
 from werkzeug.security import check_password_hash, generate_password_hash
 from models import db, User, Drive, Application
 from werkzeug.utils import secure_filename
+
 app = Flask(__name__)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///placement_portal.sqlite3'
 app.config['SECRET_KEY'] = 'super_secret_key_change_this_later' 
 
-
 app.config['UPLOAD_FOLDER'] = 'static/resumes'
-app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024 # Max upload size: 2MB
+app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024  # Max upload size: 2MB
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-
 db.init_app(app)
+
+# Programmatic DB creation (required by project spec)
+with app.app_context():
+    db.create_all()
+
+    # Auto-create admin if not exists
+    existing_admin = User.query.filter_by(role='admin').first()
+    if not existing_admin:
+        hashed_pw = generate_password_hash('admin123', method='pbkdf2:sha256')
+        admin_user = User(username='admin', password=hashed_pw, role='admin')
+        db.session.add(admin_user)
+        db.session.commit()
+        print("Admin user created (Username: admin, Password: admin123)")
 
 login_manager = LoginManager()
 login_manager.login_view = 'login'
@@ -25,6 +37,10 @@ login_manager.init_app(app)
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+
+# ─────────────────────────────────────────────
+# AUTH ROUTES
+# ─────────────────────────────────────────────
 
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/login', methods=['GET', 'POST'])
@@ -40,7 +56,7 @@ def login():
                 flash('Your account has been blacklisted by the Administrator.', 'danger')
                 return redirect(url_for('login'))
             if user.role == 'company' and not user.is_approved:
-                flash('Your company account is pending Admin approval.')
+                flash('Your company account is pending Admin approval.', 'warning')
                 return redirect(url_for('login'))
                 
             login_user(user)
@@ -52,7 +68,7 @@ def login():
             elif user.role == 'student':
                 return redirect(url_for('student_dashboard'))
         else:
-            flash('Invalid username or password. Please try again.')
+            flash('Invalid username or password. Please try again.', 'danger')
             
     return render_template('login.html')
 
@@ -61,50 +77,102 @@ def login():
 @login_required
 def logout():
     logout_user()
+    flash('You have been logged out.', 'success')
     return redirect(url_for('login'))
 
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        role = request.form.get('role') 
+        
+        if User.query.filter_by(username=username).first():
+            flash('Username already exists. Please choose another.', 'danger')
+            return redirect(url_for('register'))
+            
+        hashed_pw = generate_password_hash(password, method='pbkdf2:sha256')
+        
+        if role == 'student':
+            name = request.form.get('name')
+            department = request.form.get('department')
+            new_user = User(username=username, password=hashed_pw, role=role, 
+                          name=name, department=department)
+            
+        elif role == 'company':
+            company_name = request.form.get('company_name')
+            hr_contact = request.form.get('hr_contact')
+            website = request.form.get('website')
+            industry = request.form.get('industry')
+            new_user = User(username=username, password=hashed_pw, role=role, 
+                          company_name=company_name, hr_contact=hr_contact,
+                          website=website, industry=industry)
+        else:
+            flash('Invalid role selected.', 'danger')
+            return redirect(url_for('register'))
+            
+        db.session.add(new_user)
+        db.session.commit()
+        
+        if role == 'company':
+            flash('Registration successful! Your account is pending Admin approval.', 'success')
+        else:
+            flash('Registration successful! You can now log in.', 'success')
+        return redirect(url_for('login'))
+        
+    return render_template('register.html')
+
+
+# ─────────────────────────────────────────────
+# ADMIN ROUTES
+# ─────────────────────────────────────────────
 
 @app.route('/admin_dashboard')
 @login_required
 def admin_dashboard():
     if current_user.role != 'admin':
-        flash('Access denied: Admins only.')
+        flash('Access denied: Admins only.', 'danger')
         return redirect(url_for('login'))
     
-    # Calculate statistics [cite: 98-99]
+    # Calculate statistics
     total_students = User.query.filter_by(role='student').count()
     total_companies = User.query.filter_by(role='company').count()
     total_drives = Drive.query.count()
     total_applications = Application.query.count()
     
-    # Fetch pending approvals (always visible)
+    # Fetch pending approvals
     pending_companies = User.query.filter_by(role='company', is_approved=False).all()
     pending_drives = Drive.query.filter_by(status='Pending').all()
     
-    # Check if a search query was provided 
+    # Search functionality
     search_query = request.args.get('search', '')
     
     if search_query:
         if search_query.isdigit():
-            # Search exactly by ID
             approved_companies = User.query.filter_by(role='company', is_approved=True, id=int(search_query)).all()
             students = User.query.filter_by(role='student', id=int(search_query)).all()
         else:
-            # Search by partial text match 
-            # NEW: Companies search by Name OR Industry
+            # Companies: search by Name, Industry, or HR Contact
             approved_companies = User.query.filter(
                 User.role == 'company', 
                 User.is_approved == True, 
                 db.or_(
                     User.company_name.ilike(f'%{search_query}%'),
-                    User.industry.ilike(f'%{search_query}%')
+                    User.industry.ilike(f'%{search_query}%'),
+                    User.hr_contact.ilike(f'%{search_query}%')
                 )
             ).all()
             
-            # Students search by Name
-            students = User.query.filter(User.role == 'student', User.name.ilike(f'%{search_query}%')).all()
+            # Students: search by Name, Username (contact info)
+            students = User.query.filter(
+                User.role == 'student', 
+                db.or_(
+                    User.name.ilike(f'%{search_query}%'),
+                    User.username.ilike(f'%{search_query}%')
+                )
+            ).all()
     else:
-        # Default behavior: show all
         approved_companies = User.query.filter_by(role='company', is_approved=True).all()
         students = User.query.filter_by(role='student').all()
     
@@ -117,37 +185,22 @@ def admin_dashboard():
                            pending_drives=pending_drives,
                            search_query=search_query)
 
+
 @app.route('/admin/history')
 @login_required
 def admin_history():
     if current_user.role != 'admin':
-        flash('Access denied: Admins only.')
+        flash('Access denied: Admins only.', 'danger')
         return redirect(url_for('login'))
     
-    # Fetch all drives and all applications, ordering by newest first
     all_drives = Drive.query.order_by(Drive.id.desc()).all()
     all_applications = Application.query.order_by(Application.application_date.desc()).all()
     
     return render_template('admin_history.html', drives=all_drives, applications=all_applications)
 
-@app.route('/approve_drive/<int:drive_id>', methods=['POST'])
-@login_required
-
-def approve_drive(drive_id):
-    if current_user.role != 'admin':
-        return redirect(url_for('login'))
-        
-    drive = Drive.query.get_or_404(drive_id)
-    drive.status = 'Approved'
-    db.session.commit()
-    
-    flash(f'Placement drive "{drive.job_title}" has been approved!', 'success')
-    return redirect(url_for('admin_dashboard'))
- 
 
 @app.route('/approve_company/<int:company_id>', methods=['POST'])
 @login_required
-
 def approve_company(company_id):
     if current_user.role != 'admin':
         return redirect(url_for('login'))
@@ -160,35 +213,163 @@ def approve_company(company_id):
     return redirect(url_for('admin_dashboard'))
 
 
-@app.route('/company_dashboard')
+@app.route('/reject_company/<int:company_id>', methods=['POST'])
 @login_required
-
-def company_dashboard():
-    # Security check: Kick out non-companies
-    if current_user.role != 'company':
-        flash('Access denied: Companies only.')
+def reject_company(company_id):
+    if current_user.role != 'admin':
         return redirect(url_for('login'))
         
-    # Fetch all drives created by this specific company 
+    company = User.query.get_or_404(company_id)
+    company_name = company.company_name
+    db.session.delete(company)
+    db.session.commit()
+    
+    flash(f'Company "{company_name}" has been rejected and removed.', 'warning')
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/approve_drive/<int:drive_id>', methods=['POST'])
+@login_required
+def approve_drive(drive_id):
+    if current_user.role != 'admin':
+        return redirect(url_for('login'))
+        
+    drive = Drive.query.get_or_404(drive_id)
+    drive.status = 'Approved'
+    db.session.commit()
+    
+    flash(f'Placement drive "{drive.job_title}" has been approved!', 'success')
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/reject_drive/<int:drive_id>', methods=['POST'])
+@login_required
+def reject_drive(drive_id):
+    if current_user.role != 'admin':
+        return redirect(url_for('login'))
+        
+    drive = Drive.query.get_or_404(drive_id)
+    drive.status = 'Rejected'
+    db.session.commit()
+    
+    flash(f'Placement drive "{drive.job_title}" has been rejected.', 'warning')
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/blacklist/<int:user_id>', methods=['POST'])
+@login_required
+def toggle_blacklist(user_id):
+    if current_user.role != 'admin':
+        return redirect(url_for('login'))
+    
+    user = User.query.get_or_404(user_id)
+    user.is_blacklisted = not user.is_blacklisted
+    db.session.commit()
+    
+    status = "blacklisted" if user.is_blacklisted else "un-blacklisted"
+    flash(f'User {user.username} has been {status}.', 'warning')
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/delete/<int:user_id>', methods=['POST'])
+@login_required
+def delete_user(user_id):
+    if current_user.role != 'admin':
+        return redirect(url_for('login'))
+    
+    user = User.query.get_or_404(user_id)
+    
+    # Cascade delete: remove all related data to prevent foreign key errors
+    if user.role == 'company':
+        # Delete all applications for drives owned by this company
+        company_drives = Drive.query.filter_by(company_id=user.id).all()
+        for drive in company_drives:
+            Application.query.filter_by(drive_id=drive.id).delete()
+        # Delete all drives owned by this company
+        Drive.query.filter_by(company_id=user.id).delete()
+    elif user.role == 'student':
+        # Delete all applications by this student
+        Application.query.filter_by(student_id=user.id).delete()
+    
+    db.session.delete(user)
+    db.session.commit()
+    
+    flash('User deleted successfully.', 'success')
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/edit_user/<int:user_id>', methods=['GET', 'POST'])
+@login_required
+def admin_edit_user(user_id):
+    if current_user.role != 'admin':
+        return redirect(url_for('login'))
+    
+    user = User.query.get_or_404(user_id)
+    
+    if request.method == 'POST':
+        if user.role == 'student':
+            user.name = request.form.get('name')
+            user.department = request.form.get('department')
+        elif user.role == 'company':
+            user.company_name = request.form.get('company_name')
+            user.hr_contact = request.form.get('hr_contact')
+            user.website = request.form.get('website')
+            user.industry = request.form.get('industry')
+            
+        db.session.commit()
+        flash('User details updated successfully!', 'success')
+        return redirect(url_for('admin_dashboard'))
+        
+    return render_template('admin_edit_user.html', user=user)
+
+
+# ─────────────────────────────────────────────
+# COMPANY ROUTES
+# ─────────────────────────────────────────────
+
+@app.route('/company_dashboard')
+@login_required
+def company_dashboard():
+    if current_user.role != 'company':
+        flash('Access denied: Companies only.', 'danger')
+        return redirect(url_for('login'))
+        
     drives = Drive.query.filter_by(company_id=current_user.id).all()
     
     return render_template('company_dashboard.html', drives=drives)
 
+
+@app.route('/edit_company_profile', methods=['GET', 'POST'])
+@login_required
+def edit_company_profile():
+    if current_user.role != 'company':
+        return redirect(url_for('login'))
+        
+    if request.method == 'POST':
+        current_user.company_name = request.form.get('company_name')
+        current_user.hr_contact = request.form.get('hr_contact')
+        current_user.website = request.form.get('website')
+        current_user.industry = request.form.get('industry')
+        
+        db.session.commit()
+        flash('Company profile updated successfully!', 'success')
+        return redirect(url_for('company_dashboard'))
+        
+    return render_template('edit_company_profile.html')
+
+
 @app.route('/create_drive', methods=['GET', 'POST'])
 @login_required
-
 def create_drive():
     if current_user.role != 'company':
         return redirect(url_for('login'))
         
     if request.method == 'POST':
-        # Get data from the form [cite: 57-60]
         job_title = request.form.get('job_title')
         job_description = request.form.get('job_description')
         eligibility_criteria = request.form.get('eligibility_criteria')
         application_deadline = request.form.get('application_deadline')
         
-        # Create the new drive with a default status of 'Pending' Admin approval 
         new_drive = Drive(
             company_id=current_user.id,
             job_title=job_title,
@@ -201,21 +382,22 @@ def create_drive():
         db.session.add(new_drive)
         db.session.commit()
         
-        flash('Placement drive created successfully! It is currently pending Admin approval.')
+        flash('Placement drive created successfully! It is currently pending Admin approval.', 'success')
         return redirect(url_for('company_dashboard'))
         
     return render_template('create_drive.html')
 
+
 @app.route('/edit_drive/<int:drive_id>', methods=['GET', 'POST'])
 @login_required
 def edit_drive(drive_id):
-    if current_user.role != 'company': return redirect(url_for('login'))
+    if current_user.role != 'company':
+        return redirect(url_for('login'))
         
     drive = Drive.query.get_or_404(drive_id)
     
-    # Security check: Ensure company owns this drive
     if drive.company_id != current_user.id:
-        flash('Unauthorized access.')
+        flash('Unauthorized access.', 'danger')
         return redirect(url_for('company_dashboard'))
         
     if request.method == 'POST':
@@ -224,18 +406,18 @@ def edit_drive(drive_id):
         drive.eligibility_criteria = request.form.get('eligibility_criteria')
         drive.application_deadline = request.form.get('application_deadline')
         
-        # Optional: if they edit it, you might want it to remain 'Approved' or go back to 'Pending'. 
-        # For simplicity, we'll leave the status as is.
         db.session.commit()
         flash('Drive updated successfully!', 'success')
         return redirect(url_for('company_dashboard'))
         
     return render_template('edit_drive.html', drive=drive)
 
+
 @app.route('/close_drive/<int:drive_id>', methods=['POST'])
 @login_required
 def close_drive(drive_id):
-    if current_user.role != 'company': return redirect(url_for('login'))
+    if current_user.role != 'company':
+        return redirect(url_for('login'))
         
     drive = Drive.query.get_or_404(drive_id)
     if drive.company_id == current_user.id:
@@ -245,41 +427,39 @@ def close_drive(drive_id):
         
     return redirect(url_for('company_dashboard'))
 
+
 @app.route('/delete_drive/<int:drive_id>', methods=['POST'])
 @login_required
 def delete_drive(drive_id):
-    if current_user.role != 'company': return redirect(url_for('login'))
+    if current_user.role != 'company':
+        return redirect(url_for('login'))
         
     drive = Drive.query.get_or_404(drive_id)
     if drive.company_id == current_user.id:
-        # First, delete all applications associated with this drive to prevent database errors
         Application.query.filter_by(drive_id=drive_id).delete()
-        
-        # Then delete the drive itself
         db.session.delete(drive)
         db.session.commit()
         flash('Placement drive deleted successfully.', 'success')
         
     return redirect(url_for('company_dashboard'))
 
+
 @app.route('/drive/<int:drive_id>/applications')
 @login_required
-
 def drive_applications(drive_id):
     if current_user.role != 'company':
         return redirect(url_for('login'))
         
     drive = Drive.query.get_or_404(drive_id)
     
-    # Security check: Ensure the company actually owns this drive
     if drive.company_id != current_user.id:
-        flash('Unauthorized access.')
+        flash('Unauthorized access.', 'danger')
         return redirect(url_for('company_dashboard'))
         
-    # Fetch all applications for this specific drive
     applications = Application.query.filter_by(drive_id=drive_id).all()
     
     return render_template('drive_applications.html', drive=drive, applications=applications)
+
 
 @app.route('/update_application/<int:app_id>', methods=['POST'])
 @login_required
@@ -289,12 +469,10 @@ def update_application(app_id):
         
     application = Application.query.get_or_404(app_id)
     
-    # Security check again
     if application.drive.company_id != current_user.id:
-        flash('Unauthorized access.')
+        flash('Unauthorized access.', 'danger')
         return redirect(url_for('company_dashboard'))
         
-    # Get the new status from the submitted form
     new_status = request.form.get('status')
     if new_status in ['Applied', 'Shortlisted', 'Selected', 'Rejected']:
         application.status = new_status
@@ -303,34 +481,37 @@ def update_application(app_id):
         
     return redirect(url_for('drive_applications', drive_id=application.drive_id))
 
+
+# ─────────────────────────────────────────────
+# STUDENT ROUTES
+# ─────────────────────────────────────────────
+
 @app.route('/student_dashboard')
 @login_required
 def student_dashboard():
     if current_user.role != 'student':
-        flash('Access denied: Students only.')
+        flash('Access denied: Students only.', 'danger')
         return redirect(url_for('login'))
         
     my_applications = Application.query.filter_by(student_id=current_user.id).all()
     applied_drive_ids = [app.drive_id for app in my_applications]
     
-    # NEW: Get the search query from the URL
     search_query = request.args.get('search', '')
     
-    # Start with a base query for approved drives
+    # Only show Approved drives
     query = Drive.query.filter(Drive.status == 'Approved')
     
     # Exclude drives the student already applied to
     if applied_drive_ids:
         query = query.filter(Drive.id.notin_(applied_drive_ids))
         
-    # NEW: Apply the search filter if a query exists
+    # Apply search filter
     if search_query:
-        # Search by job title (position) or company name
         query = query.join(User).filter(
             db.or_(
                 Drive.job_title.ilike(f'%{search_query}%'),
                 User.company_name.ilike(f'%{search_query}%'),
-                Drive.eligibility_criteria.ilike(f'%{search_query}%') # Acts as "skills"
+                Drive.eligibility_criteria.ilike(f'%{search_query}%')
             )
         )
         
@@ -339,32 +520,24 @@ def student_dashboard():
     return render_template('student_dashboard.html', 
                            available_drives=available_drives, 
                            my_applications=my_applications,
-                           search_query=search_query) # Pass query to template
+                           search_query=search_query)
+
 
 @app.route('/edit_profile', methods=['GET', 'POST'])
 @login_required
-
 def edit_profile():
     if current_user.role != 'student':
         return redirect(url_for('login'))
         
     if request.method == 'POST':
-        # Get text fields
         current_user.name = request.form.get('name')
         current_user.department = request.form.get('department')
         
-        # Handle file upload [cite: 123]
         resume = request.files.get('resume')
         if resume and resume.filename != '':
-            # Secure the filename to prevent directory traversal attacks
             filename = secure_filename(resume.filename)
-            # Add student ID to prevent filename collisions
             unique_filename = f"student_{current_user.id}_{filename}"
-            
-            # Save file to the static/resumes folder
             resume.save(os.path.join(app.config['UPLOAD_FOLDER'], unique_filename))
-            
-            # Update database record
             current_user.resume_filename = unique_filename
             
         db.session.commit()
@@ -373,24 +546,34 @@ def edit_profile():
         
     return render_template('edit_profile.html')
 
+
 @app.route('/apply/<int:drive_id>', methods=['POST'])
 @login_required
-
 def apply(drive_id):
     if current_user.role != 'student':
         return redirect(url_for('login'))
+    
+    # Check if student is blacklisted
+    if current_user.is_blacklisted:
+        flash('Your account has been blacklisted. You cannot apply to drives.', 'danger')
+        return redirect(url_for('student_dashboard'))
+    
+    # Check if drive is approved (prevent applying to closed/rejected drives)
+    drive = Drive.query.get_or_404(drive_id)
+    if drive.status != 'Approved':
+        flash('This placement drive is not currently accepting applications.', 'danger')
+        return redirect(url_for('student_dashboard'))
         
-    # Double-check if the student already applied (backend validation) 
+    # Prevent duplicate applications
     existing_app = Application.query.filter_by(student_id=current_user.id, drive_id=drive_id).first()
     if existing_app:
         flash('You have already applied for this placement drive.', 'danger')
         return redirect(url_for('student_dashboard'))
         
-    # Create the new application [cite: 40, 120]
     new_application = Application(
         student_id=current_user.id, 
         drive_id=drive_id, 
-        status='Applied' # Default status
+        status='Applied'
     )
     db.session.add(new_application)
     db.session.commit()
@@ -398,86 +581,6 @@ def apply(drive_id):
     flash('Successfully applied to the placement drive!', 'success')
     return redirect(url_for('student_dashboard'))
 
-@app.route('/register', methods=['GET', 'POST'])
-
-def register():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        role = request.form.get('role') 
-        
-        if User.query.filter_by(username=username).first():
-            flash('Username already exists. Please choose another.')
-            return redirect(url_for('register'))
-            
-        hashed_pw = generate_password_hash(password, method='pbkdf2:sha256')
-        
-        if role == 'student':
-            name = request.form.get('name')
-            department = request.form.get('department')
-            new_user = User(username=username, password=hashed_pw, role=role, name=name, department=department)
-            
-        elif role == 'company':
-            company_name = request.form.get('company_name')
-            hr_contact = request.form.get('hr_contact')
-            new_user = User(username=username, password=hashed_pw, role=role, company_name=company_name, hr_contact=hr_contact)
-            
-        db.session.add(new_user)
-        db.session.commit()
-        
-        flash('Registration successful! You can now log in.')
-        return redirect(url_for('login'))
-        
-    return render_template('register.html')
-
-@app.route('/admin/blacklist/<int:user_id>', methods=['POST'])
-@login_required
-
-def toggle_blacklist(user_id):
-    if current_user.role != 'admin': return redirect(url_for('login'))
-    
-    user = User.query.get_or_404(user_id)
-    user.is_blacklisted = not user.is_blacklisted # Toggles between True and False
-    db.session.commit()
-    
-    status = "blacklisted" if user.is_blacklisted else "un-blacklisted"
-    flash(f'User {user.username} has been {status}.', 'warning')
-    return redirect(url_for('admin_dashboard'))
-
-@app.route('/admin/delete/<int:user_id>', methods=['POST'])
-@login_required
-
-def delete_user(user_id):
-    if current_user.role != 'admin': return redirect(url_for('login'))
-    
-    user = User.query.get_or_404(user_id)
-    db.session.delete(user)
-    db.session.commit()
-    
-    flash('User deleted successfully.', 'success')
-    return redirect(url_for('admin_dashboard'))
-
-@app.route('/admin/edit_user/<int:user_id>', methods=['GET', 'POST'])
-@login_required
-
-def admin_edit_user(user_id):
-    if current_user.role != 'admin': return redirect(url_for('login'))
-    
-    user = User.query.get_or_404(user_id)
-    
-    if request.method == 'POST':
-        if user.role == 'student':
-            user.name = request.form.get('name')
-            user.department = request.form.get('department')
-        elif user.role == 'company':
-            user.company_name = request.form.get('company_name')
-            user.hr_contact = request.form.get('hr_contact')
-            
-        db.session.commit()
-        flash('User details updated successfully!', 'success')
-        return redirect(url_for('admin_dashboard'))
-        
-    return render_template('admin_edit_user.html', user=user)
 
 if __name__ == '__main__':
     app.run(debug=True)
