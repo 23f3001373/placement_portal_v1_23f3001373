@@ -1,6 +1,6 @@
 # Placement Portal Application
 
-A web-based Placement Portal that allows **Admin (Institute)**, **Company**, and **Student** users to interact with the campus recruitment system based on their roles.
+A web-based Placement Portal that allows **Admin**, **Company**, and **Student** users to interact with the campus recruitment system based on their roles.
 
 Built with **Flask**, **Jinja2**, **SQLite**, and **Bootstrap 5**.
 
@@ -8,7 +8,7 @@ Built with **Flask**, **Jinja2**, **SQLite**, and **Bootstrap 5**.
 
 ## Features
 
-### Admin (Institute Placement Cell)
+### Admin
 - Pre-existing superuser account
 - Approve or reject company registrations
 - Approve or reject placement drives
@@ -47,8 +47,8 @@ Built with **Flask**, **Jinja2**, **SQLite**, and **Bootstrap 5**.
 ## Project Setup
 
 ### Prerequisites
-- **Python 3.8+** installed on your system
-- **pip** (comes with Python)
+- **Python 3.8+**
+- **pip**
 
 ### Step 1: Create a Virtual Environment
 
@@ -106,7 +106,7 @@ placement_portal/
 ├── models.py               # SQLAlchemy database models (User, Drive, Application)
 ├── create_admin.py         # Standalone script to create admin user
 ├── requirements.txt        # Python dependencies
-├── README.md               # This file
+├── README.md               
 ├── instance/
 │   └── placement_portal.sqlite3   # SQLite database (auto-generated)
 ├── static/
