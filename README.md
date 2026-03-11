@@ -55,11 +55,10 @@ Built with **Flask**, **Jinja2**, **SQLite**, and **Bootstrap 5**.
 Open a terminal in the project folder and run:
 
 ```bash
-# Windows
 python -m venv venv
 venv\Scripts\activate
 
-# macOS / Linux
+#or
 python3 -m venv venv
 source venv/bin/activate
 ```
